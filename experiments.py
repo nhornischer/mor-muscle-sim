@@ -59,6 +59,7 @@ if __name__ == '__main__':
     # Separated waves simply initialized with 2 basis functions for the left and right wave
     hash_dec_sep_simp_left=decomp.main(hash_fom_sep_ext,1,True,'SimpleLeft',data_wave='Left')
     hash_dec_sep_simp_right=decomp.main(hash_fom_sep_ext,1,True,'SimpleRight',data_wave='Right')
+    hash_merged_sep = base.merge_spaces(hash_dec_sep_simp_left,hash_dec_sep_simp_right)
 
     # Separated waves initialized gauss with [2,4] basis functions
     hash_dec_sep_gaus_2=decomp.main(hash_fom_sep_ext,2,True,'gausDual')
@@ -82,6 +83,7 @@ if __name__ == '__main__':
     # Overlapping waves simply initialized with 2 basis functions for the left and right wave
     hash_dec_over_simp_left=decomp.main(hash_fom_over_ext,1,True,'SimpleLeft',data_wave='Left')
     hash_dec_over_simp_right=decomp.main(hash_fom_over_ext,1,True,'SimpleRight',data_wave='Right')
+    hash_merged_over = base.merge_spaces(hash_dec_over_simp_left,hash_dec_over_simp_right)
 
     # Overlapping waves initialized gauss with [2,4] basis functions
     hash_dec_over_gaus_2=decomp.main(hash_fom_over_ext,2,True,'gausDual')
@@ -154,13 +156,10 @@ if __name__ == '__main__':
     # Evaluate DECOMP with shift and initialized simply for left and right waves
     base.calculate_error(hash_dec_sep_simp_left,hash_fom_sep_ext)
     base.calculate_error(hash_dec_sep_simp_right,hash_fom_sep_ext)
-    base.calculate_error(hash_dec_sep_simp_left,hash_fom_sep_ext)
-    base.calculate_error(hash_dec_sep_simp_right,hash_fom_sep_ext)
-
     base.calculate_error(hash_dec_over_simp_left,hash_fom_over_ext)
     base.calculate_error(hash_dec_over_simp_right,hash_fom_over_ext)
-    base.calculate_error(hash_dec_over_simp_left,hash_fom_over_ext)
-    base.calculate_error(hash_dec_over_simp_right,hash_fom_over_ext)
+    base.calculate_error(hash_merged_sep,hash_fom_sep_ext)
+    base.calculate_error(hash_merged_over,hash_fom_over_ext)
 
 
     # Evaluate DECOMP with shift and initialized with Gaus
@@ -244,7 +243,6 @@ if __name__ == '__main__':
 
     # Plot DECOMP with separated 
     base.plot_snapshots(hash_dec_sep)
-    base.plot_cost_convergence(hash_dec_sep)
     base.plot_error(hash_dec_sep)
     base.plot_comparison(hash_dec_sep,hash_fom_sep_ext)
 
@@ -252,25 +250,23 @@ if __name__ == '__main__':
     base.plot_snapshots(hash_dec_sep_simp_1)
     base.plot_decomposition(hash_dec_sep_simp_1)
     base.plot_error(hash_dec_sep_simp_1)
-    base.plot_cost_convergence(hash_dec_sep_simp_1)
     base.plot_snapshots(hash_dec_sep_simp_2)
     base.plot_decomposition(hash_dec_sep_simp_2)
     base.plot_error(hash_dec_sep_simp_2)
-    base.plot_cost_convergence(hash_dec_sep_simp_2)
     base.plot_snapshots(hash_dec_sep_simp_3)
     base.plot_decomposition(hash_dec_sep_simp_3)
     base.plot_error(hash_dec_sep_simp_3)
-    base.plot_cost_convergence(hash_dec_sep_simp_3)
     base.plot_snapshots(hash_dec_sep_simp_4)
     base.plot_decomposition(hash_dec_sep_simp_4)
     base.plot_error(hash_dec_sep_simp_4)
-    base.plot_cost_convergence(hash_dec_sep_simp_4)
 
     # Plot Decomp with left and right wave
     base.plot_snapshots(hash_dec_sep_simp_left)
     base.plot_error(hash_dec_sep_simp_left)
     base.plot_snapshots(hash_dec_sep_simp_right)
     base.plot_error(hash_dec_sep_simp_right)
+    base.plot_snapshots(hash_merged_sep)
+    base.plot_error(hash_merged_sep)
 
     # Plot Decomp with Gauss
     base.plot_snapshots(hash_dec_sep_gaus_2)
@@ -286,7 +282,6 @@ if __name__ == '__main__':
 
     # Plot DECOMP with overlapped 
     base.plot_snapshots(hash_dec_over)
-    base.plot_cost_convergence(hash_dec_over)
     base.plot_error(hash_dec_over)
     base.plot_comparison(hash_dec_over,hash_fom_over_ext)
 
@@ -294,19 +289,15 @@ if __name__ == '__main__':
     base.plot_snapshots(hash_dec_over_simp_1)
     base.plot_decomposition(hash_dec_over_simp_1)
     base.plot_error(hash_dec_over_simp_1)
-    base.plot_cost_convergence(hash_dec_over_simp_1)
     base.plot_snapshots(hash_dec_over_simp_2)
     base.plot_decomposition(hash_dec_over_simp_2)
     base.plot_error(hash_dec_over_simp_2)
-    base.plot_cost_convergence(hash_dec_over_simp_2)
     base.plot_snapshots(hash_dec_over_simp_3)
     base.plot_decomposition(hash_dec_over_simp_3)
     base.plot_error(hash_dec_over_simp_3)
-    base.plot_cost_convergence(hash_dec_over_simp_3)
     base.plot_snapshots(hash_dec_over_simp_4)
     base.plot_decomposition(hash_dec_over_simp_4)
     base.plot_error(hash_dec_over_simp_4)
-    base.plot_cost_convergence(hash_dec_over_simp_4)
 
     # Plot Decomp with left and right wave for overlapped
     base.plot_snapshots(hash_dec_over_simp_left)
@@ -314,13 +305,14 @@ if __name__ == '__main__':
     base.plot_comparison(hash_dec_over_simp_left,hash_fom_over_ext)
     base.plot_snapshots(hash_dec_over_simp_right)
     base.plot_error(hash_dec_over_simp_right)
+    base.plot_snapshots(hash_merged_over)
+    base.plot_error(hash_merged_over)
 
     # Plot Decomp with Gauss for overlapped
     base.plot_snapshots(hash_dec_over_gaus_2)
     base.plot_comparison(hash_dec_over_gaus_2,hash_fom_over_ext)
     base.plot_error(hash_dec_over_gaus_2)
     base.plot_decomposition(hash_dec_over_gaus_2)
-
 
     # Plot ROM with separated
     base.plot_snapshots(hash_rom_sep_ext)

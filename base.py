@@ -1,9 +1,11 @@
 import numpy as np
+import matplotlib.pyplot as plt
+plt.rcParams.update({'font.size': 13})
 
 def create_hash():
     """Creates an unique hash, that is not already in use.
 
-    Returns
+    Return
     -------
     hash : str
         The created unique hash as a string.
@@ -224,7 +226,7 @@ def load_np_data(hash : str, task : str):
     # Define file endings depending on the task
     if task=='SOLVER':
         file_ending='_states.npy'
-    elif task=='DECOMPOSITION':
+    elif task=='DECOMPOSITION' or task=='MERGED':
         file_ending='_decomposed.npy'
     elif task=='NONLINEAR':
         file_ending='_nonlinear.npy'
@@ -236,6 +238,9 @@ def load_np_data(hash : str, task : str):
         file_ending='_error_abs.npy'
     elif task=='COST':
         file_ending='_cost.npy'
+    elif task=='INITIAL':
+        file_ending='decomp_initial.npy'
+
     
     # Load the data
     import os
@@ -284,29 +289,16 @@ def plot_snapshots(hash : str):
 
     states=np.array([np.reshape(states_flat[i,:],[int(np.shape(states_flat)[1]/discretization['N']),discretization['N']]).T for i in range(discretization['M'])])
     labels=['$u$ [mV]','$y_1$','$y_2$','$y_3$']
-    import matplotlib.pyplot as plt
     # Plot each snapshot separately
     for i in range(np.shape(states)[-1]):
         fig = plt.figure(tight_layout=True)
         plt.imshow(states[:, :,i], aspect='auto',extent=[0,xs[-1],ts[0],ts[-1]], origin='lower')
         plt.xlabel('$x$ [cm]')
         plt.ylabel('$t$ [ms]')
+        cbar=plt.colorbar()
+        cbar.set_label(labels[i])
         plt.savefig(f"plots/{hash}_snapshot_{i}.pdf")
-        plt.savefig(f"plots/{hash}_snapshot_{i}.png")
         plt.close(fig)
-    
-    # Plot all states in one figure
-    fig = plt.figure(tight_layout=True,num=f"{hash}_snapshots")
-    for i in range(np.shape(states)[-1]):
-
-        ax=fig.add_subplot(int((np.shape(states)[-1]+1)/2),int((np.shape(states)[-1]+1)/2),i+1)
-        ax.imshow(states[:, :,i], aspect='auto',extent=[0,xs[-1],ts[0],ts[-1]], origin='lower')
-        plt.xlabel('$x$ [cm]')
-        plt.ylabel('$t$ [ms]')
-        plt.title(labels[i])
-
-    plt.savefig(f"plots/{hash}_snapshots.pdf")
-    plt.savefig(f"plots/{hash}_snapshots.png")
 
 def plot_states(hash : str , t_res = 22):
     """Plots the states over the spatial domain for selected
@@ -328,25 +320,10 @@ def plot_states(hash : str , t_res = 22):
     xs=np.linspace(0,11.9,discretization['N'])
 
     states=np.array([np.reshape(states_flat[i,:],[int(np.shape(states_flat)[1]/discretization['N']),discretization['N']]).T for i in range(discretization['M'])])
-    import matplotlib.pyplot as plt
     t_res=min(t_res,discretization['M'])
     t_stride=int(discretization['M']/t_res)
     print(f'Plotting states for {hash} with {t_stride*discretization["HT"]} ms between the curves')
     cs = np.linspace(0,1, discretization['M'] // t_stride + 1)
-    # Plot each state separately
-    for i in range(np.shape(states)[-1]):
-        fig = plt.figure(tight_layout=True)
-        ax=plt.axes()
-        ax.plot(xs, states[::-t_stride, :,i].T)
-        for idx,line in enumerate(ax.lines): line.set_color((cs[idx], 0.5, 0.5))
-        ax.plot(xs, states[0, :,i], '--', color='black')
-        ax.plot(xs, states[-1, :,i], color='black')
-        plt.xlabel('$x$ [cm]')
-        plt.ylabel(labels[i])
-
-        plt.savefig(f"plots/{hash}_state_{i}.pdf")
-        plt.savefig(f"plots/{hash}_state_{i}.png")
-        plt.close(fig)
     
     # Plot all states in one figure
     fig = plt.figure(tight_layout=True,num=f"{hash}_states")
@@ -359,7 +336,7 @@ def plot_states(hash : str , t_res = 22):
         plt.ylabel(labels[i])
     plt.xlabel('$x$ [cm]')
     plt.savefig(f"plots/{hash}_states.pdf")
-    plt.savefig(f"plots/{hash}_states.png")
+    plt.close(fig)
 
 def plot_initial(hash : str):
     """Plots the initial values for the states of the given hash.
@@ -369,6 +346,7 @@ def plot_initial(hash : str):
     hash : str
         Hash to load the initial values.
     """
+    print(f'Plotting initial values for {hash}')
     states_flat=load_np_data(hash,'SOLVER')
     discretization,_=read_log(hash)
     
@@ -376,7 +354,6 @@ def plot_initial(hash : str):
     xs=np.linspace(0,11.9,discretization['N'])
 
     states=np.array([np.reshape(states_flat[i,:],[int(np.shape(states_flat)[1]/discretization['N']),discretization['N']]).T for i in range(discretization['M'])])
-    import matplotlib.pyplot as plt
     for i in range(np.shape(states)[-1]):
         fig = plt.figure(tight_layout=True)
         ax=plt.axes()
@@ -385,7 +362,6 @@ def plot_initial(hash : str):
         plt.ylabel(labels[i])
 
         plt.savefig(f"plots/{hash}_initial_{i}.pdf")
-        plt.savefig(f"plots/{hash}_initial_{i}.png")
         plt.close(fig)
     # Plot all states in one figure
     fig = plt.figure(tight_layout=True,num=f"{hash}_states")
@@ -395,7 +371,6 @@ def plot_initial(hash : str):
         plt.ylabel(labels[i])
     plt.xlabel('$x$ [cm]')
     plt.savefig(f"plots/{hash}_initials.pdf")
-    plt.savefig(f"plots/{hash}_initials.png")
 
 def load_true_data(discretization : dict , initialization : dict , solution_hash : str):
     """Loads the states and data from the solution hash and matches it with
@@ -477,9 +452,7 @@ def plot_error(hash : str , t_res=22):
     xs=np.linspace(0,11.9,discretization['N'])
     ts=np.linspace(zero,zero+discretization['HT']*(discretization['M']-1),discretization['M'])
 
-
-    labels=['$e_{abs}(u)$','$e_{abs}(y_1)$','$e_{abs}(y_2)$','$e_{abs}(y_3)$']
-    import matplotlib.pyplot as plt
+    labels=['$e_{abs}$','$e_{abs}$','$e_{abs}$','$e_{abs}$']
     # Plot error snapshot for each state separately
     for i in range(np.shape(error_abs)[-1]):
         fig=plt.figure(tight_layout=True)
@@ -490,21 +463,7 @@ def plot_error(hash : str , t_res=22):
         plt.ylabel('$t$ [ms]')
 
         plt.savefig(f"plots/{hash}_error_abs_snapshot_{i}.pdf")
-        plt.savefig(f"plots/{hash}_error_abs_snapshot_{i}.png")
         plt.close(fig)
-    
-    # Plot error snapshots for all states in one figure
-    fig = plt.figure(tight_layout=True,num=f"{hash}_errors_abs_snapshots")
-    subplots=[411,412,413,414]
-    for i in range(np.shape(error_abs)[-1]):
-        plt.subplot(int((np.shape(error_abs)[-1]+1)/2),int((np.shape(error_abs)[-1]+1)/2),i+1)
-        plt.imshow(error_abs[:, :,i], aspect='auto',extent=[0,xs[-1],ts[0],ts[-1]], cmap='Reds', origin='lower')
-        plt.xlabel('$x$ [cm]')
-        plt.ylabel('$t$ [ms]')
-        plt.title(labels[i])
-
-    plt.savefig(f"plots/{hash}_errors_abs_snapshots.pdf")
-    plt.savefig(f"plots/{hash}_errors_abs_snapshots.png")
 
     t_stride=int(discretization['M']/t_res)
     cs = np.linspace(0,1, discretization['M'] // t_stride + 1)
@@ -520,23 +479,9 @@ def plot_error(hash : str , t_res=22):
         plt.ylabel(labels[i])
 
         plt.savefig(f"plots/{hash}_errors_abs__state_{i}.pdf")
-        plt.savefig(f"plots/{hash}_errors_ab_state_{i}.png")
         plt.close(fig)
-    
-    # Plot errors for all states in one figure
-    fig = plt.figure(tight_layout=True,num=f"{hash}_errors_abs_states")
-    for i in range(np.shape(error_abs)[-1]):
-        ax=fig.add_subplot(np.shape(error_abs)[-1],1,i+1)
-        ax.plot(xs, error_abs[::-t_stride, :,i].T)
-        for idx,line in enumerate(ax.lines): line.set_color((cs[idx], 0.5, 0.5))
-        ax.plot(xs, error_abs[0, :,i], '--', color='black')
-        ax.plot(xs, error_abs[-1, :,i], color='black')
-        plt.ylabel(labels[i])
-    plt.xlabel('$x$ [cm]')
-    plt.savefig(f"plots/{hash}_errors_abs_states.pdf")
-    plt.savefig(f"plots/{hash}_errors_abs_states.png")
 
-def plot_decomposition(hash : str):
+def plot_decomposition(hash : str, TASK = 'DECOMPOSITION'):
     """Plots the parameters of the reduced ansatz space defined by the
     decomposition.
 
@@ -547,8 +492,9 @@ def plot_decomposition(hash : str):
     """
     print(f'Plotting decompostion for {hash}')
 
-    decomposed=load_np_data(hash,'DECOMPOSITION')
+    decomposed=load_np_data(hash, TASK)
     discretization,_=read_log(hash)
+    
 
     M,R,N,GAMMA=discretization['M'],discretization['R'],discretization['N'],discretization['Gamma']
 
@@ -560,42 +506,22 @@ def plot_decomposition(hash : str):
     phi = np.reshape(decomposed[GAMMA*M*R:GAMMA*M*R+R*N], [R, N])
     paths = decomposed[GAMMA*M*R+R*N:]
 
-    import matplotlib.pyplot as plt
+    print(f' path values: {paths}')
 
     fig=plt.figure(tight_layout=True)
     for i in range(min(R,10)):
-        plt.plot(xs,phi[i,:], label=f'$\phi_{i}$')
+        if i+1<=min(R,10)/2:
+            plt.plot(xs,phi[i,:], label=f'$\\varphi_{i+1}$')
+        else:
+            plt.plot(xs,phi[i,:], label=f'$\\varphi_{i+1}$', linestyle='--')
     plt.xlabel('$x$ [cm]')
     plt.legend()
-
-    plt.savefig(f"plots/{hash}_decomposition_phi.pdf")
-    plt.savefig(f"plots/{hash}_decomposition_phi.png")
-
+    if TASK=='DECOMPOSITION':
+        filename = f"plots/{hash}_decomposition_phi.pdf"
+    elif TASK=='INITIAL':
+        filename = f"plots/{hash}_initial_phi.pdf"
+    plt.savefig(filename)
     plt.close(fig)
-    fig=plt.figure(tight_layout=True)
-    for i in range(min(R,10)):
-        plt.plot(ts,alpha_full[0,:,i], label=f'$ \\alpha_{i}$')
-    plt.xlabel('$t$ [ms]')
-    plt.legend()
-
-    plt.savefig(f"plots/{hash}_decomposition_alpha.pdf")
-    plt.savefig(f"plots/{hash}_decomposition_alpha.png")
-
-    plt.close(fig)
-    fig=plt.figure(tight_layout=True)
-    plt.subplot(121)
-    for i in range(min(R,10)):
-        plt.plot(xs,phi[i,:], label=f'$\phi_{i}$')
-    plt.xlabel('$x$ [cm]')
-    plt.legend()
-    plt.subplot(122)
-    for i in range(min(R,10)):
-        plt.plot(ts,alpha_full[0,:,i], label=f'$ \\alpha_{i}$')
-    plt.xlabel('$t$ [ms]')
-    plt.legend()
-
-    plt.savefig(f"plots/{hash}_decomposition.pdf")
-    plt.savefig(f"plots/{hash}_decomposition.png")
 
 def calculate_nonlinear_term(hash : str):
     """Evaluates the Hodgkin-Huxley model for the given statees of the hash.
@@ -621,7 +547,6 @@ def calculate_nonlinear_term(hash : str):
     import solver
     for i in range(M+1):
         nonlinear_terms[i,:],_=solver.hodgkin_huxley(u[i,:],y[i,:,:])
-    import matplotlib.pyplot as plt
     plt.figure(tight_layout=True)
     xs=np.linspace(0,11.9,discretization['N'])
     ts=np.linspace(0,discretization['HT']*(discretization['M']-1),discretization['M'])
@@ -632,7 +557,6 @@ def calculate_nonlinear_term(hash : str):
     cbar.set_label('Voltage [mV]')
 
     plt.savefig("plots/"+hash+"_nonlinear.svg")
-    plt.savefig("plots/"+hash+"_nonlinear.png")
     np.save(str("solutions/"+hash+"_nonlinear.npy"),np.asarray(nonlinear_terms))
 
     return nonlinear_terms
@@ -663,7 +587,6 @@ def calculate_linear_term(hash : str):
     
     for i in range(M+1):
         linear_terms[i,:]=Mass_inv @ Stiff @ u[i,:]
-    import matplotlib.pyplot as plt
     plt.figure(tight_layout=True)
     xs=np.linspace(0,11.9,discretization['N'])
     ts=np.linspace(0,discretization['HT']*discretization['M'],discretization['M']+1)
@@ -674,7 +597,6 @@ def calculate_linear_term(hash : str):
     cbar.set_label('Voltage [mV]')
 
     plt.savefig("plots/"+hash+"_linear.svg")
-    plt.savefig("plots/"+hash+"_linear.png")
     np.save(str("solutions/"+hash+"_linear.npy"),np.asarray(linear_terms))
 
     return linear_terms
@@ -731,6 +653,8 @@ def merge_spaces(hash_1 : str , hash_2 : str):
     decomposed_2=load_np_data(hash_2,'DECOMPOSITION')
     discretization_2,_=read_log(hash_2) 
 
+    print(initial_1)
+    import decomp
 
     M,R,N,GAMMA=discretization_1['M'],discretization_1['R'],discretization_1['N'],discretization_1['Gamma']
 
@@ -752,10 +676,31 @@ def merge_spaces(hash_1 : str , hash_2 : str):
 
     alpha_full=np.concatenate([alpha_full_1,alpha_full_2],axis=2)
 
+    T, HS = discretization_1['HT']*M, discretization_1['HS']
+
+    # Visualization of the solution
+    snapshots=[]
+    for gamma in range(GAMMA):
+        alpha=alpha_full[gamma,:,:]
+        sol_vis = np.empty([M, N])
+        for i,t in enumerate(np.linspace(0, T, M)):
+            sol_vis[i, :] = sum([alpha[i, k]*((decomp.omega(paths[k]*t,N,HS)@phi[k, :])) for k in range(R)])
+        snapshots.append(sol_vis)
+    shifts = initial_1['shift']
+    # Backshifts of the snapshot data
+    for gamma in range(len(snapshots)):
+        snapshots[gamma]=np.add(snapshots[gamma],shifts)
+
+
+    if hash!=None:
+        for gamma in range(discretization_1['Gamma']):
+            np.save(f"solutions/{hash}_{str(gamma)}_states",snapshots[gamma])
+
     x=np.concatenate([alpha_full.flatten(), phi.flatten(), paths.flatten()])
 
-    write_log([f"{'':<15} Merged hashes:{hash_1} , max={hash_2} \n",f"{'':<15} Spatial discretization: N={discretization_1['N']} , HS={discretization_1['HS']} cm , Gamma=1\n",f"{'':<15} Time discretization: T={discretization_1['HT']*M} ms , HT={discretization_1['HT']} ms , M={discretization_1['M']} \n", f"{'':<15} Reduced discretization: R={R}\n",f"{'':<15} Initialization: init={initial_1['init']} , shift={initial_1['shift']}\n"],hash)
+    write_log([f"{'':<15} Merged hashes:{hash_1} , max={hash_2} \n",f"{'':<15} Spatial discretization: N={discretization_1['N']} , HS={discretization_1['HS']} cm , Gamma=1\n",f"{'':<15} Time discretization: T={discretization_1['T']} ms , HT={discretization_1['HT']} ms , M={discretization_1['M']} \n", f"{'':<15} Reduced discretization: R={R}\n",f"{'':<15} Initialization: init={initial_1['init']} , shift={initial_1['shift']}\n"],hash)
     np.save("solutions/"+hash+"_decomposed",x)
+
     return hash
       
 def calculate_error(hash_test_data : str , hash_true_data : str):
@@ -775,7 +720,10 @@ def calculate_error(hash_test_data : str , hash_true_data : str):
     """
     # Load test snapshot data
     test_discretization,test_initialization=read_log(hash_test_data)
-    test_data_flat=load_np_data(hash_test_data,'SOLVER')
+    try:
+        test_data_flat=load_np_data(hash_test_data,'SOLVER')
+    except:
+        test_data_flat=load_np_data(hash_test_data,'MERGED')
     test_data=np.array([np.reshape(test_data_flat[i,:],[int(np.shape(test_data_flat)[1]/test_discretization['N']),test_discretization['N']]).T for i in range(test_discretization['M'])])
 
     # Load true data
@@ -791,7 +739,7 @@ def calculate_error(hash_test_data : str , hash_true_data : str):
     np.save(str("solutions/"+hash_test_data+"_error_abs.npy"),error_abs)
 
     import decomp
-    N,M,T,HS,HT,R,Gamma=test_discretization['N'],test_discretization['M'],test_discretization['T'],test_discretization['HS'],test_discretization['HT'],test_discretization['R'],1
+    N,M,T,HS,HT,Gamma=test_discretization['N'],test_discretization['M'],test_discretization['T'],test_discretization['HS'],test_discretization['HT'],1
 
 
     norm_true=np.sqrt(decomp.L_2_error([true_data[:,:,0]],[np.zeros([M,N])],M,N,HT,HS,T,1))
@@ -801,15 +749,16 @@ def calculate_error(hash_test_data : str , hash_true_data : str):
         shift=None
 
     if shift!=None:
-        true_data[:,:,0]=np.subtract(true_data[:,:,0],shift)
+        true_data[:,:,0]=np.subtract(true_data[:,:,0],float(shift))
 
     try: 
+        R = test_discretization['R']
         test_data_decomp=load_np_data(hash_test_data,'DECOMPOSITION')
         L2=np.sqrt(decomp.cost(test_data_decomp,[true_data[:,:,0]],M,N,R,T,HT,HS,Gamma))
-        print(f'Errors for {hash_test_data}: max_abs={np.max(error_abs):.5f} , mean_abs={np.mean(error_abs):.5f} , min_abs={np.min(error_abs):.5f} , L2={L2:.5f}, , L2_rel={L2/norm_true:.10f}')
+        print(f'Errors for {hash_test_data}: max_abs={np.max(error_abs):.4f} , mean_abs={np.mean(error_abs):.4f} , min_abs={np.min(error_abs):.4f} , L2={L2:.4f}, , L2_rel={L2/norm_true:.10f}')
         error_info=np.asarray([np.max(error_abs),np.mean(error_abs),np.min(error_abs),L2,L2/norm_true])
     except:
-        print(f'Errors for {hash_test_data}: max_abs={np.max(error_abs):.5f} , mean_abs={np.mean(error_abs):.5f} , min_abs={np.min(error_abs):.5f}')
+        print(f'Errors for {hash_test_data}: max_abs={np.max(error_abs):.4f} , mean_abs={np.mean(error_abs):.4f} , min_abs={np.min(error_abs):.4f}')
         error_info=np.asarray([np.max(error_abs),np.mean(error_abs),np.min(error_abs)])
 
     np.save(str("solutions/"+hash_test_data+"_error_info.npy"), error_info)
@@ -873,7 +822,6 @@ def animation(hash : str):
 
     plt.ylabel('$u$ [mV]')
     plt.plot(x,voltage[5000,:])
-    plt.savefig('plots/Voltage_shot.png')
 
 def plot_comparison(hash_test_data : str , hash_true_data : str , t_res=5):
     """Plots the true data and the test data for selected time values.
@@ -906,7 +854,6 @@ def plot_comparison(hash_test_data : str , hash_true_data : str , t_res=5):
 
     labels=['$u$ [mV]','$y_1$','$y_2$','$y_3$']
 
-    import matplotlib.pyplot as plt
 
     colors=['Black','Red','Green','Blue','Orange']
     # Plot comparison for each state separately
@@ -916,101 +863,19 @@ def plot_comparison(hash_test_data : str , hash_true_data : str , t_res=5):
             plt.plot(xs,true_data[j,:,i],color=colors[idx],label=f'$t={ts[j]}$ ms')
             plt.plot(xs,test_data[j,:,i],color=colors[idx],linestyle='None',marker='o',markersize=1)
             plt.xlabel('$x$ [cm]')
-        plt.legend()
-        plt.savefig(f"plots/{hash_test_data}_comparison_{i}.pdf")
-        plt.savefig(f"plots/{hash_test_data}_comparison_{i}.png")
-        plt.close(fig)
-
-    # Plot comparison for all states in one figrure
-    fig = plt.figure(tight_layout=True,num=f"{hash_test_data}_comparisons")
-    for i in range(np.shape(test_data)[-1]):
-        plt.subplot(np.shape(test_data)[-1],1,i+1)
-        for idx,j in enumerate(np.linspace(0,test_discretization['M']-1,t_res,dtype=int)):
-            plt.plot(xs,true_data[j,:,i],color=colors[idx],label=f'$t={ts[j]}$ ms')
-            plt.plot(xs,test_data[j,:,i],color=colors[idx],linestyle='None',marker='o')
-            plt.xlabel('$x$ [cm]')
             plt.ylabel(labels[i])
         plt.legend()
+        plt.savefig(f"plots/{hash_test_data}_comparison_{i}.pdf")
+        plt.close()
 
-    plt.savefig(f"plots/{hash_test_data}_comparisons.pdf")
-    plt.savefig(f"plots/{hash_test_data}_comparisons.png")
-    # Plot comparison for voltage
-    fig = plt.figure(tight_layout=True,num=f"{hash_test_data}_comparison_0")
+    # Plot comparison of voltage for zooming
+    fig = plt.figure(num = hash_test_data + "_comparison_0", tight_layout=True)
     for idx,j in enumerate(np.linspace(0,test_discretization['M']-1,t_res,dtype=int)):
         plt.plot(xs,true_data[j,:,0],color=colors[idx],label=f'$t={ts[j]}$ ms')
         plt.plot(xs,test_data[j,:,0],color=colors[idx],linestyle='None',marker='o')
         plt.xlabel('$x$ [cm]')
-        plt.ylabel(labels[i])
+        plt.ylabel(labels[0])
     plt.legend()
-
-def plot_cost_convergence(hash : str):
-    """Plots the cost decay for the minimization algorithm at differet scales.
-
-    Parameters
-    ----------
-    hash : str
-        Hash to decomposition task
-    """
-    cost=load_np_data(hash,'COST')
-    import matplotlib.pyplot as plt
-
-    # Plot cost
-    fig = plt.figure(tight_layout=True)
-    plt.plot(cost)
-    plt.ylabel(r'$J( \alpha ,\phi ,p) $')
-    plt.xlabel('iterations')
-    plt.ylim(min(cost[:]), cost[0]+cost[0]*0.5)
-    plt.savefig(f"plots/{hash}_cost.pdf")
-    plt.savefig(f"plots/{hash}_cost.png")
-    plt.close(fig)
-
-    # Plot cost logarithmic
-    fig=plt.figure(tight_layout=True)
-    ax=plt.axes()
-    ax.plot(cost)
-    ax.set_yscale('log')
-    plt.ylabel(r'$J( \alpha ,\phi ,p) $')
-    plt.ylim(min(cost[:]), cost[0]+cost[0]*0.5)
-    plt.xlabel('iterations')
-    plt.savefig(f"plots/{hash}_cost_log.pdf")
-    plt.savefig(f"plots/{hash}_cost_log.png")
-    plt.close(fig)
-
-
-    # Plot cost normal and logarithmic in one Plot
-    fig, ax1 = plt.subplots()
-    color = 'tab:red'
-    ax1.set_xlabel('iterations')
-    ax1.set_ylabel(r'$J( \alpha ,\phi ,p) $', color = color)
-    ax1.plot(cost, color = color)
-    ax1.tick_params(axis ='y', labelcolor = color)
-    ax1.set_ylim(min(cost[:]), cost[0]+cost[0]*0.5)
-    ax2 = ax1.twinx()
-    color = 'tab:green'
-    ax2.set_ylabel(r'$J( \alpha ,\phi ,p) $', color = color)
-    ax2.plot(cost, color = color)
-    ax2.set_yscale('log')
-    ax2.set_ylim(min(cost[:]), cost[0]+cost[0]*0.5)
-    ax2.tick_params(axis ='y', labelcolor = color)
-    plt.savefig(f"plots/{hash}_costs_combined.pdf")
-    plt.savefig(f"plots/{hash}_costs_combined.png")
-    plt.close(fig)
-
-    # Plot cost normal and logarithmic as subplots in one figure
-    fig = plt.figure(tight_layout=True,num=f"{hash}_costs")
-    ax=fig.add_subplot(121)
-    ax.plot(cost)
-    ax.set_ylim(min(cost[:]), cost[0]+cost[0]*0.5)
-    plt.ylabel(r'$J( \alpha ,\phi ,p) $')
-    plt.xlabel('iterations')
-    ax=fig.add_subplot(122)
-    ax.plot(cost)
-    ax.set_yscale('log')
-    ax.set_ylim(min(cost[:]), cost[0]+cost[0]*0.5)
-    plt.ylabel(r'$J( \alpha ,\phi ,p) $')
-    plt.xlabel('iterations')
-    plt.savefig(f"plots/{hash}_costs.pdf")
-    plt.savefig(f"plots/{hash}_costs.png")
 
 def time_test(T : float , HT : float, problem : str , method : str , initial_values , reduced_data = 'None' , test_num = 5 , save = True):
     """Measures the computation time of a FOM or ROM simulation.

@@ -28,7 +28,7 @@ def load_problem(hash : str , hash_data : str , shift = False , tasks = ['SOLVER
     tasks : list, optional
         List of string of the different tasks to be loaded under the given hash_data, by default ['SOLVER','NONLINEAR']
     time_range : double, optional
-        Selection of the time range to reduce computation time in ms, by default 1
+        Selection of the time range to reduce computation time in ms, by default 4
 
     Returns
     -------
@@ -119,7 +119,7 @@ def initial_values(data : list , discretization : dict , hash : str , initial = 
         slopes.append((np.argmax(data[gamma][-1, :])-np.argmax(data[gamma][0, :]))*HS/T)  
     slopes=np.concatenate((np.asarray(slopes),np.asarray(slopes)))
     slopes=np.concatenate((np.asarray(slopes),np.asarray(slopes)))
-    alpha = np.zeros([Gamma, M, R])
+    alpha = np.ones([Gamma, M, R])
     phi = np.zeros([R,N])
     paths = np.empty([R])
 
@@ -138,35 +138,28 @@ def initial_values(data : list , discretization : dict , hash : str , initial = 
             slopes.append((np.argmax(data[gamma][-1, :int(N/2)])-np.argmax(data[gamma][0, :int(N/2)]))*HS/T)  
             slopes.append((np.argmax(data[gamma][-1, int(N/2):])-np.argmax(data[gamma][0, int(N/2):]))*HS/T)
         slopes=np.concatenate((np.asarray(slopes),np.asarray(slopes)))
-        paths = 1*full(R, slopes[:R])
+        paths = 1 * full(R, slopes[:R])
+        alpha[:,:,:] = np.ones([Gamma, M, R]) / (R / 2) 
         for i in range(R):
-            alpha[gamma,:,int(R/Gamma)*gamma:int(R/Gamma)*(gamma+1)]=1
             if i%2==0:
                 phi[i,:int(N/2)]=data[0][0,:int(N/2)]
             else:
                 phi[i,int(N/2):]=data[0][0,int(N/2):]
 
-    elif initial=='gausDual':
-        # Initialisation with Gauss functions for each side separately
+    elif initial=='dualSnapshotsOptimized':
         slopes=[]
         for gamma in range(Gamma):
             slopes.append((np.argmax(data[gamma][-1, :int(N/2)])-np.argmax(data[gamma][0, :int(N/2)]))*HS/T)  
             slopes.append((np.argmax(data[gamma][-1, int(N/2):])-np.argmax(data[gamma][0, int(N/2):]))*HS/T)
-            slopes.append((np.argmin(data[gamma][-1, :int(N/2)])-np.argmin(data[gamma][0, :int(N/2)]))*HS/T)
-            slopes.append((np.argmin(data[gamma][-1, int(N/2):])-np.argmin(data[gamma][0, int(N/2):]))*HS/T)
-        print(slopes)
-        alpha=np.ones([Gamma, M, R])/int(R/2)
-        for i in range(R):
-            alpha[gamma,:,int(R/Gamma)*gamma:int(R/Gamma)*(gamma+1)]=1
-            from scipy.stats import norm
-            if i%2==0:
-                gaus=norm.pdf(np.arange(0,1191,1),int(np.argmax(data[gamma][0, :int(N/2)])+20),40)
-                phi[i,:]=gaus*((100)/np.max(gaus))   
-            else:
-                gaus=norm.pdf(np.arange(0,1191,1),int(N/2+np.argmax(data[gamma][0, int(N/2):])-20),40)
-                phi[i,:]=gaus*((100)/np.max(gaus))   
-        paths=full(R,slopes[:R])
-    
+        slopes=np.concatenate((np.asarray(slopes),np.asarray(slopes)))
+        paths = 1*full(R, slopes[:R])
+        optValues = base.load_np_data("cc01273f333e", 'DECOMPOSITION')
+        optDiscr,_ = base.read_log("cc01273f333e")
+        opt_R = optDiscr['R']
+        paths[:opt_R] = optValues[Gamma*M*opt_R + opt_R*N:]
+        alpha[:,:,:opt_R] = np.reshape(optValues[:Gamma*M*opt_R],(Gamma,M,opt_R))
+        phi[:opt_R,:] = np.reshape(optValues[Gamma*M*opt_R:Gamma*M*opt_R + opt_R*N],(opt_R,N))
+
     elif initial=='SimpleLeft':
         # Initialisation with zero values for left side of the wave
         slopes=[]
@@ -177,7 +170,6 @@ def initial_values(data : list , discretization : dict , hash : str , initial = 
         slopes=np.concatenate((np.asarray(slopes),np.asarray(slopes)))
         print(slopes)
         alpha=np.ones([Gamma, M, R])
-        phi=np.zeros([R,N])
         paths=full(R,slopes[:R])
 
     elif initial=='SimpleRight':
@@ -190,8 +182,25 @@ def initial_values(data : list , discretization : dict , hash : str , initial = 
         slopes=np.concatenate((np.asarray(slopes),np.asarray(slopes)))
         print(slopes)
         alpha=np.ones([Gamma, M, R])
+        paths=full(R,slopes[:R])
+
+    elif initial=='SimpleOptimized':
+        slopes=[]
+        for gamma in range(Gamma):
+            slopes.append((np.argmax(data[gamma][-1, :int(N/2)])-np.argmax(data[gamma][0, :int(N/2)]))*HS/T)  
+            slopes.append((np.argmax(data[gamma][-1, int(N/2):])-np.argmax(data[gamma][0, int(N/2):]))*HS/T)
+            slopes.append((np.argmin(data[gamma][-1, :int(N/2)])-np.argmin(data[gamma][0, :int(N/2)]))*HS/T)
+            slopes.append((np.argmin(data[gamma][-1, int(N/2):])-np.argmin(data[gamma][0, int(N/2):]))*HS/T)
+        optValues = base.load_np_data("78feb399fce0", 'DECOMPOSITION')
+        optDiscr,_ = base.read_log("78feb399fce0")
+        opt_R = optDiscr['R']
+        slopes=np.concatenate((np.asarray(slopes),np.asarray(slopes)))
+        alpha=np.ones([Gamma, M, R])
         phi=np.zeros([R,N])
         paths=full(R,slopes[:R])
+        paths[:opt_R] = optValues[Gamma*M*opt_R + opt_R*N:]
+        alpha[:,:,:opt_R] = np.reshape(optValues[:Gamma*M*opt_R],(Gamma,M,opt_R))
+        phi[:opt_R,:] = np.reshape(optValues[Gamma*M*opt_R:Gamma*M*opt_R + opt_R*N],(opt_R,N))
 
     else:
         # Initialisation with zero values for both sides of the wave
@@ -205,7 +214,6 @@ def initial_values(data : list , discretization : dict , hash : str , initial = 
         slopes=np.concatenate((np.asarray(slopes),np.asarray(slopes)))
         print(slopes)
         alpha=np.ones([Gamma, M, R])
-        phi=np.zeros([R,N])
         paths=full(R,slopes[:R])
 
     print(f"Initial values:")
@@ -633,8 +641,6 @@ def main(hash_data : str , R : int , data_shift : bool , initial_data : str , da
     if hash!=None:
         for gamma in range(discretization['Gamma']):
             np.save(f"solutions/{hash}_{str(gamma)}_states",snapshots[gamma])
-        np.save(f"solutions/{hash}_cost",np.asarray(cost_values))
-
     return hash
 
 # =============================================================================
